@@ -1,0 +1,13 @@
+name: 'Common PR Title Checker'
+description: 'Check if Pull Request title or latest commit message conform to a specified format'
+inputs:
+  pattern:
+    description: 'Regular expression for validating PR title or latest commit message'
+    required: false
+    default: '^(fix|feat|docs|style|refactor|pref|test|build|ci|chore|revert)(\([^)]+\))?(!)?: .{1,50}$'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+branding:
+  icon: 'check-circle'
+  color: 'green'

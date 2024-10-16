@@ -1,0 +1,23 @@
+name: Check PR Title or Commit Message
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [ main ]
+jobs:
+  check-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Run title checker
+        uses: ./
+        with:
+          pattern: '^(fix|feat|docs|style|refactor|pref|test|build|ci|chore|revert)(\([^)]+\))?(!)?: .{1,50}$'
