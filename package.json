@@ -1,0 +1,27 @@
+{
+    "name": "pr-title-checker",
+    "version": "1.0.0",
+    "description": "GitHub Action to check PR titles against a specified format",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "github",
+        "actions",
+        "pr",
+        "title",
+        "checker"
+    ],
+    "author": "Young Xu",
+    "license": "MIT",
+    "dependencies": {
+        "@actions/core": "^1.10.0",
+        "@actions/github": "^5.1.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.8.2",
+        "typescript": "^5.2.2"
+    }
+}
