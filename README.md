@@ -4,7 +4,7 @@ This is a GitHub Action to check if Pull Request titles conform to a specified f
 
 ## Usage
 
-Create a `.github/workflows/pr-title-checker.yml` file in your repository with the following content:
+Create a `.github/workflows/common-pr-title-checker.yaml` file in your repository with the following content:
 
 ## Standard
 

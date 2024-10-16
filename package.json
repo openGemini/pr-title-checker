@@ -1,5 +1,5 @@
 {
-    "name": "pr-title-checker",
+    "name": "common-pr-title-checker",
     "version": "1.0.0",
     "description": "GitHub Action to check PR titles against a specified format",
     "main": "dist/index.js",
