@@ -6,6 +6,22 @@ This is a GitHub Action to check if Pull Request title or latest commit message 
 
 Create a `.github/workflows/common-pr-title-checker.yaml` file in your repository with the following content:
 
+```yaml
+name: PR Title Checker
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  check-pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Common PR Title Checker
+        uses: xuthus5/pr-title-checker@v0.0.5
+```
+
 ## Standard
 
 PR titles should follow this format: `<type>(<scope>): <subject>`
