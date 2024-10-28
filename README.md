@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Common PR Title Checker
-        uses: xuthus5/pr-title-checker@v0.0.5
+        uses: xuthus5/pr-title-checker@v1
 ```
 
 ## Standard

@@ -19,7 +19,14 @@ async function run() {
 
     const titleRegex = new RegExp(core.getInput('pattern'));
     if (!titleRegex.test(titleToCheck)) {
-      core.setFailed(`pull request title or latest commit message does not conform to the standard. Please use the format: <type>(<scope>): <subject>\n\nthe <type> can be: feat, fix, docs, style, refactor, test, pref, build, ci, chore or revert`);
+      core.setFailed(
+        "Pull request title or latest commit message does not conform to the standard. " +
+        "Please use the format: <type>(<scope>): <subject>\n\n" +
+        "The <type> can be: feat, fix, docs, style, refactor, test, pref, build, ci, chore or revert\n\n" +
+        "There must be exactly one space after the colon, and no space is allowed at the end of the title.\n\n" +
+        "Only displayable ASCII characters are allowed in the title. " +
+        "The displayable character number range is 32-126 (0x20-0x7E), a total of 95 characters"
+      );
     } else {
       core.info(`pull request title or latest commit message conforms to the standard`);
     }
