@@ -1,4 +1,4 @@
-name: Check PR Title or Commit Message
+name: Lint
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
@@ -20,4 +20,4 @@ jobs:
       - name: Run title checker
         uses: ./
         with:
-          pattern: '^(fix|feat|docs|style|refactor|pref|test|build|ci|chore|revert)(\([^)]+\))?(!)?: [\x21-\x7E]([\x20-\x7E]{0,48}[\x21-\x7E])?$'
+          pattern: '^(fix|feat|docs|style|refactor|pref|test|build|ci|chore|revert)(\([^)]+\))?(!)?: [\x21-\x7E]([\x20-\x7E]{0,118}[\x21-\x7E])?$'
