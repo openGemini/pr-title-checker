@@ -4,7 +4,7 @@ inputs:
   pattern:
     description: 'Regex pattern for validating PR title or commit message'
     required: false
-    default: '^(fix|feat|docs|style|refactor|pref|test|build|ci|chore|revert)(\([^)]+\))?(!)?: [\x21-\x7E]([\x20-\x7E]{0,48}[\x21-\x7E])?$'
+    default: '^(fix|feat|docs|style|refactor|pref|test|build|ci|chore|revert)(\([^)]+\))?(!)?: [\x21-\x7E]([\x20-\x7E]{0,118}[\x21-\x7E])?$'
 runs:
   using: 'node20'
   main: 'dist/index.js'
