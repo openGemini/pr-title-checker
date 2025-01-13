@@ -1,7 +1,7 @@
 import { describe, test, expect } from '@jest/globals';
 
 // 修改正则表达式，使用 JavaScript 支持的字符类写法
-const pattern = '^(fix|feat|docs|style|refactor|pref|test|build|ci|chore|revert)(\\([^)]+\\))?(!)?: [\\x21-\\x7E]([\\x20-\\x7E]{0,48}[\\x21-\\x7E])?$';
+const pattern = '^(fix|feat|docs|style|refactor|perf|test|build|ci|chore|revert)(\\([^)]+\\))?(!)?: [\\x21-\\x7E]([\\x20-\\x7E]{0,48}[\\x21-\\x7E])?$';
 
 describe('PR Title Validator', () => {
   const regex = new RegExp(pattern);

@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: PR Title Lint
-        uses: openGemini/pr-title-checker@v1.0.1
+        uses: openGemini/pr-title-checker@main
 ```
 
 ## Standard
@@ -32,7 +32,7 @@ PR titles should follow this format: `<type>(<scope>): <subject>`
   - docs: Documentation changes
   - style: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
   - refactor: A code change that neither fixes a bug nor adds a feature
-  - pref: A code change that improves performance
+  - perf: A code change that improves performance
   - test: Adding missing tests or correcting existing tests
   - build: Changes that affect the build system or external dependencies
   - ci: Changes to CI configuration files and scripts
