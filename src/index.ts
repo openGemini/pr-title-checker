@@ -1,74 +1,13 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-
-interface TitleValidationResult {
-  isValid: boolean;
-  errors: string[];
-  corrects: string[];
-}
-
-function validateTitle(title: string): TitleValidationResult {
-  const result: TitleValidationResult = {
-    isValid: true,
-    errors: [],
-    corrects: []
-  };
-
-  // Check basic format
-  const formatRegex = /^(feat|fix|docs|style|refactor|test|perf|build|ci|chore|revert)(\(.+\))?: .+$/;
-  if (!formatRegex.test(title)) {
-    result.isValid = false;
-    result.errors.push('Title format is incorrect. It should be: <type>(<scope>): <subject>');
-    result.corrects.push('feat(prom): add router for prom module')
-  }
-
-  // Check type
-  const typeRegex = /^(feat|fix|docs|style|refactor|test|perf|build|ci|chore|revert)/;
-  if (!typeRegex.test(title)) {
-    result.isValid = false;
-    result.errors.push('Type must be one of: feat, fix, docs, style, refactor, test, perf, build, ci, chore, revert');
-    result.corrects.push('ci: change pr lint pattern')
-  }
-
-  // Check space after colon
-  if (title.includes(':')) {
-    if (!/^[^:]+: [^ ]/.test(title)) {
-      result.isValid = false;
-      result.errors.push('There must be exactly one space after the colon');
-      result.corrects.push('^feat: ?$')
-    }
-  }
-
-  // Check trailing space
-  if (title.endsWith(' ')) {
-    result.isValid = false;
-    result.errors.push('Title must not end with a space');
-    result.corrects.push('^feat: hello$')
-  }
-
-  // Check ASCII characters
-  const nonAsciiRegex = /[^\x20-\x7E]/;
-  if (nonAsciiRegex.test(title)) {
-    result.isValid = false;
-    result.errors.push('Title must only contain displayable ASCII characters (range: 32-126)');
-    result.corrects.push('feat: abc-123_$v #@1')
-  }
-
-  // Check scope format (if present)
-  if (title.includes('(')) {
-    const scopeRegex = /^\w+\([a-zA-Z0-9-_]+\):/;
-    if (!scopeRegex.test(title)) {
-      result.isValid = false;
-      result.errors.push('Scope format is incorrect. Scope should only contain letters, numbers, hyphens, and underscores');
-      result.corrects.push('feat(good): good')
-    }
-  }
-
-  return result;
-}
+import { ConventionalCommitValidator } from './validator';
 
 async function run() {
   try {
+    // Get the strict mode setting (default: true)
+    const strictMode = core.getInput('strict') !== 'false';
+
+    // Get the title to check
     const context = github.context;
     let titleToCheck: string;
 
@@ -81,34 +20,63 @@ async function run() {
       return;
     }
 
-    const validationResult = validateTitle(titleToCheck);
-    
-    if (!validationResult.isValid) {
-      const errorMessage = [
-        `Title "${titleToCheck}" does not conform to the standard.`,
-        '',
-        'Found the following issues:',
-        ...validationResult.errors.map(error => `- ${error}`),
-        '',
-        'Examples of correct title format:',
-        ...validationResult.corrects.map(c => `- ${c}`),
-        '',
-        'Title Restrictions: The format for a PR (Pull Request) title should follow these rules: <type>(<scope>): <subject>',
-        'type and subject are required fields.',
-        'scope is optional and can be omitted.',
-        'Character Limit: The subject must not exceed 120 characters.',
-        'Type Restrictions: the type must be one of the following specified options: feat, fix, docs, style, refactor, test, perf, build, ci, chore, revert',
-        'Character Restrictions: the title may only contain ASCII characters; other character sets are not allowed.',
-        'Whitespace Rules: the subject must not end with a space; there must be only one space following the `:`'
-      ].join('\n');
+    core.info(`Checking title: "${titleToCheck}"`);
 
-      core.setFailed(errorMessage);
+    // Validate the title
+    const validator = new ConventionalCommitValidator({ strict: strictMode });
+    const result = validator.validate(titleToCheck);
+
+    if (!result.isValid) {
+      // Build error message
+      const errorLines = [
+        `❌ Title "${titleToCheck}" does not conform to Conventional Commits specification.`,
+        '',
+        '📋 Found the following issues:',
+        '',
+      ];
+
+      result.errors.forEach((error, index) => {
+        errorLines.push(`${index + 1}. ${error.message}`);
+        if (error.example) {
+          errorLines.push(`   Example: ${error.example}`);
+        }
+        errorLines.push('');
+      });
+
+      errorLines.push('');
+      errorLines.push('📖 Format Requirements:');
+      errorLines.push('');
+      errorLines.push('   <type>[optional scope][optional !]: <description>');
+      errorLines.push('');
+      errorLines.push('   • type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert');
+      errorLines.push('   • scope: optional, lowercase letters/numbers/hyphens/underscores only');
+      errorLines.push('   • !: optional breaking change marker (placed after scope, before colon)');
+      errorLines.push('   • description: required, max 50 characters');
+
+      if (strictMode) {
+        errorLines.push('');
+        errorLines.push('⚙️  Strict mode is enabled:');
+        errorLines.push('   • Description must start with lowercase letter');
+        errorLines.push('   • Description must not end with a period');
+        errorLines.push('   • Description should use imperative mood (e.g., "add" not "added")');
+      }
+
+      errorLines.push('');
+      errorLines.push('✅ Valid examples:');
+      errorLines.push('   • feat: add user authentication');
+      errorLines.push('   • fix(api): resolve timeout issue');
+      errorLines.push('   • docs(readme): update installation steps');
+      errorLines.push('   • feat(api)!: breaking change in API');
+      errorLines.push('');
+      errorLines.push('📚 Learn more: https://www.conventionalcommits.org/');
+
+      core.setFailed(errorLines.join('\n'));
     } else {
-      core.info(`PR title or latest commit message conforms to the standard: ${titleToCheck}`);
+      core.info(`✅ Title conforms to Conventional Commits specification`);
     }
   } catch (error) {
     if (error instanceof Error) {
-      core.setFailed(error.message);
+      core.setFailed(`Unexpected error: ${error.message}`);
     } else {
       core.setFailed('An unknown error occurred');
     }

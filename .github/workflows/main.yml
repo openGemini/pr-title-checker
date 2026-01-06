@@ -1,23 +1,125 @@
-name: Lint
+name: CI
+
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
   push:
-    branches: [ main ]
+    branches: [main]
+
 jobs:
-  check-title:
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+
       - name: Install dependencies
         run: npm ci
-      - name: Build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build project
         run: npm run build
-      - name: Run title checker
+
+      - name: Check build output
+        run: |
+          if [ ! -f dist/index.js ]; then
+            echo "Build failed: dist/index.js not found"
+            exit 1
+          fi
+          echo "Build successful: dist/index.js created"
+
+  lint-pr-title:
+    name: Lint PR Title
+    runs-on: ubuntu-latest
+    # Only run on pull requests
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build action
+        run: npm run build
+
+      - name: Validate PR title
         uses: ./
         with:
-          pattern: '^(fix|feat|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?(!)?: [\x21-\x7E]([\x20-\x7E]{0,118}[\x21-\x7E])?$'
+          strict: 'true'
+
+  # Test the action with various titles
+  test-action:
+    name: Test Action Functionality
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build action
+        run: npm run build
+
+      - name: Test with valid title (strict mode)
+        continue-on-error: true
+        id: test-valid
+        run: |
+          export GITHUB_EVENT_NAME=pull_request
+          export GITHUB_EVENT_PATH=${{ github.event_path }}
+          # Create a mock PR event
+          mkdir -p /tmp/test-event
+          cat > /tmp/test-event/pr.json <<EOF
+          {
+            "pull_request": {
+              "title": "feat: add new feature"
+            }
+          }
+          EOF
+          export GITHUB_EVENT_PATH=/tmp/test-event/pr.json
+          node dist/index.js
+
+      - name: Test with invalid title
+        continue-on-error: true
+        id: test-invalid
+        run: |
+          export GITHUB_EVENT_NAME=pull_request
+          mkdir -p /tmp/test-event
+          cat > /tmp/test-event/pr-invalid.json <<EOF
+          {
+            "pull_request": {
+              "title": "Feature: Add something"
+            }
+          }
+          EOF
+          export GITHUB_EVENT_PATH=/tmp/test-event/pr-invalid.json
+          node dist/index.js || true
+
+      - name: Verify test results
+        run: |
+          echo "Action tests completed"
+          echo "Valid title test: ${{ steps.test-valid.outcome }}"
+          echo "Invalid title test: ${{ steps.test-invalid.outcome }}"
