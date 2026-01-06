@@ -1,10 +1,11 @@
-name: 'PR Title and Commit Message Checker'
-description: 'Check PR titles and commit messages against a specified format'
+name: 'PR Title Checker'
+description: 'Validate PR titles against Conventional Commits specification'
+author: 'Young Xu'
 inputs:
-  pattern:
-    description: 'Regex pattern for validating PR title or commit message'
+  strict:
+    description: 'Enable strict mode (requires lowercase description start, no period at end, imperative mood)'
     required: false
-    default: '^(fix|feat|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?(!)?: [\x21-\x7E]([\x20-\x7E]{0,118}[\x21-\x7E])?$'
+    default: 'true'
 runs:
   using: 'node20'
   main: 'dist/index.js'

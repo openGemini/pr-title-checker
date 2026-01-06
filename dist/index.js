@@ -42,60 +42,12 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
-function validateTitle(title) {
-    const result = {
-        isValid: true,
-        errors: [],
-        corrects: []
-    };
-    // Check basic format
-    const formatRegex = /^(feat|fix|docs|style|refactor|test|perf|build|ci|chore|revert)(\(.+\))?: .+$/;
-    if (!formatRegex.test(title)) {
-        result.isValid = false;
-        result.errors.push('Title format is incorrect. It should be: <type>(<scope>): <subject>');
-        result.corrects.push('feat(prom): add router for prom module');
-    }
-    // Check type
-    const typeRegex = /^(feat|fix|docs|style|refactor|test|perf|build|ci|chore|revert)/;
-    if (!typeRegex.test(title)) {
-        result.isValid = false;
-        result.errors.push('Type must be one of: feat, fix, docs, style, refactor, test, perf, build, ci, chore, revert');
-        result.corrects.push('ci: change pr lint pattern');
-    }
-    // Check space after colon
-    if (title.includes(':')) {
-        if (!/^[^:]+: [^ ]/.test(title)) {
-            result.isValid = false;
-            result.errors.push('There must be exactly one space after the colon');
-            result.corrects.push('^feat: ?$');
-        }
-    }
-    // Check trailing space
-    if (title.endsWith(' ')) {
-        result.isValid = false;
-        result.errors.push('Title must not end with a space');
-        result.corrects.push('^feat: hello$');
-    }
-    // Check ASCII characters
-    const nonAsciiRegex = /[^\x20-\x7E]/;
-    if (nonAsciiRegex.test(title)) {
-        result.isValid = false;
-        result.errors.push('Title must only contain displayable ASCII characters (range: 32-126)');
-        result.corrects.push('feat: abc-123_$v #@1');
-    }
-    // Check scope format (if present)
-    if (title.includes('(')) {
-        const scopeRegex = /^\w+\([a-zA-Z0-9-_]+\):/;
-        if (!scopeRegex.test(title)) {
-            result.isValid = false;
-            result.errors.push('Scope format is incorrect. Scope should only contain letters, numbers, hyphens, and underscores');
-            result.corrects.push('feat(good): good');
-        }
-    }
-    return result;
-}
+const validator_1 = __nccwpck_require__(2095);
 async function run() {
     try {
+        // Get the strict mode setting (default: true)
+        const strictMode = core.getInput('strict') !== 'false';
+        // Get the title to check
         const context = github.context;
         let titleToCheck;
         if (context.payload.pull_request) {
@@ -108,34 +60,58 @@ async function run() {
             core.setFailed('Unable to get PR title or commit message');
             return;
         }
-        const validationResult = validateTitle(titleToCheck);
-        if (!validationResult.isValid) {
-            const errorMessage = [
-                `Title "${titleToCheck}" does not conform to the standard.`,
+        core.info(`Checking title: "${titleToCheck}"`);
+        // Validate the title
+        const validator = new validator_1.ConventionalCommitValidator({ strict: strictMode });
+        const result = validator.validate(titleToCheck);
+        if (!result.isValid) {
+            // Build error message
+            const errorLines = [
+                `❌ Title "${titleToCheck}" does not conform to Conventional Commits specification.`,
                 '',
-                'Found the following issues:',
-                ...validationResult.errors.map(error => `- ${error}`),
+                '📋 Found the following issues:',
                 '',
-                'Examples of correct title format:',
-                ...validationResult.corrects.map(c => `- ${c}`),
-                '',
-                'Title Restrictions: The format for a PR (Pull Request) title should follow these rules: <type>(<scope>): <subject>',
-                'type and subject are required fields.',
-                'scope is optional and can be omitted.',
-                'Character Limit: The subject must not exceed 120 characters.',
-                'Type Restrictions: the type must be one of the following specified options: feat, fix, docs, style, refactor, test, perf, build, ci, chore, revert',
-                'Character Restrictions: the title may only contain ASCII characters; other character sets are not allowed.',
-                'Whitespace Rules: the subject must not end with a space; there must be only one space following the `:`'
-            ].join('\n');
-            core.setFailed(errorMessage);
+            ];
+            result.errors.forEach((error, index) => {
+                errorLines.push(`${index + 1}. ${error.message}`);
+                if (error.example) {
+                    errorLines.push(`   Example: ${error.example}`);
+                }
+                errorLines.push('');
+            });
+            errorLines.push('');
+            errorLines.push('📖 Format Requirements:');
+            errorLines.push('');
+            errorLines.push('   <type>[optional scope][optional !]: <description>');
+            errorLines.push('');
+            errorLines.push('   • type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert');
+            errorLines.push('   • scope: optional, lowercase letters/numbers/hyphens/underscores only');
+            errorLines.push('   • !: optional breaking change marker (placed after scope, before colon)');
+            errorLines.push('   • description: required, max 50 characters');
+            if (strictMode) {
+                errorLines.push('');
+                errorLines.push('⚙️  Strict mode is enabled:');
+                errorLines.push('   • Description must start with lowercase letter');
+                errorLines.push('   • Description must not end with a period');
+                errorLines.push('   • Description should use imperative mood (e.g., "add" not "added")');
+            }
+            errorLines.push('');
+            errorLines.push('✅ Valid examples:');
+            errorLines.push('   • feat: add user authentication');
+            errorLines.push('   • fix(api): resolve timeout issue');
+            errorLines.push('   • docs(readme): update installation steps');
+            errorLines.push('   • feat(api)!: breaking change in API');
+            errorLines.push('');
+            errorLines.push('📚 Learn more: https://www.conventionalcommits.org/');
+            core.setFailed(errorLines.join('\n'));
         }
         else {
-            core.info(`PR title or latest commit message conforms to the standard: ${titleToCheck}`);
+            core.info(`✅ Title conforms to Conventional Commits specification`);
         }
     }
     catch (error) {
         if (error instanceof Error) {
-            core.setFailed(error.message);
+            core.setFailed(`Unexpected error: ${error.message}`);
         }
         else {
             core.setFailed('An unknown error occurred');
@@ -143,6 +119,355 @@ async function run() {
     }
 }
 run();
+
+
+/***/ }),
+
+/***/ 9182:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ERROR_EXAMPLES = exports.ERROR_MESSAGES = exports.ERROR_CODES = exports.PATTERNS = exports.MAX_DESCRIPTION_LENGTH = exports.ALLOWED_TYPES = void 0;
+/**
+ * Allowed commit types according to Conventional Commits specification
+ */
+exports.ALLOWED_TYPES = [
+    'feat', // A new feature
+    'fix', // A bug fix
+    'docs', // Documentation changes
+    'style', // Changes that do not affect the meaning of the code
+    'refactor', // A code change that neither fixes a bug nor adds a feature
+    'perf', // A code change that improves performance
+    'test', // Adding missing tests or correcting existing tests
+    'build', // Changes that affect the build system or external dependencies
+    'ci', // Changes to CI configuration files and scripts
+    'chore', // Other changes that don't modify src or test files
+    'revert', // Reverts a previous commit
+];
+/**
+ * Maximum length for the description part
+ */
+exports.MAX_DESCRIPTION_LENGTH = 50;
+/**
+ * Regular expressions for validation
+ */
+exports.PATTERNS = {
+    // Basic format: type[(scope)][!]: description
+    basicFormat: /^([a-z]+)(\([a-z0-9_-]+\))?(!)?: .+$/,
+    // Type pattern: must be lowercase letters only
+    type: /^([a-z]+)/,
+    // Scope pattern: optional, in parentheses, lowercase letters, numbers, hyphens, underscores
+    scope: /\(([a-z0-9_-]+)\)/,
+    // Empty scope (invalid)
+    emptyScope: /\(\)/,
+    // Breaking change marker
+    breakingChange: /!/,
+    // Colon and space separator
+    colonSpace: /: /,
+    // Non-ASCII characters
+    nonAscii: /[^\x20-\x7E]/,
+    // Uppercase letters (for strict mode)
+    uppercase: /[A-Z]/,
+    // Description starts with lowercase (strict mode)
+    descriptionStartsLowercase: /^[a-z]/,
+    // Description ends with period (forbidden in strict mode)
+    endsWithPeriod: /\.$/,
+    // Leading or trailing spaces in description
+    leadingSpace: /^: {2,}/,
+    trailingSpace: / $/,
+    // Common imperative verb patterns (for suggestions)
+    imperativeVerbs: /^(add|update|remove|delete|fix|create|implement|refactor|optimize|improve|enhance|change|move|rename|extract|merge|split|document|test|bump|upgrade|downgrade|revert|release)/i,
+};
+/**
+ * Error codes for different validation failures
+ */
+exports.ERROR_CODES = {
+    INVALID_FORMAT: 'INVALID_FORMAT',
+    INVALID_TYPE: 'INVALID_TYPE',
+    TYPE_NOT_LOWERCASE: 'TYPE_NOT_LOWERCASE',
+    EMPTY_SCOPE: 'EMPTY_SCOPE',
+    INVALID_SCOPE_FORMAT: 'INVALID_SCOPE_FORMAT',
+    SCOPE_NOT_LOWERCASE: 'SCOPE_NOT_LOWERCASE',
+    INVALID_BREAKING_CHANGE_POSITION: 'INVALID_BREAKING_CHANGE_POSITION',
+    MISSING_DESCRIPTION: 'MISSING_DESCRIPTION',
+    DESCRIPTION_TOO_LONG: 'DESCRIPTION_TOO_LONG',
+    DESCRIPTION_NOT_LOWERCASE: 'DESCRIPTION_NOT_LOWERCASE',
+    DESCRIPTION_ENDS_WITH_PERIOD: 'DESCRIPTION_ENDS_WITH_PERIOD',
+    DESCRIPTION_HAS_LEADING_SPACE: 'DESCRIPTION_HAS_LEADING_SPACE',
+    DESCRIPTION_HAS_TRAILING_SPACE: 'DESCRIPTION_HAS_TRAILING_SPACE',
+    MISSING_SPACE_AFTER_COLON: 'MISSING_SPACE_AFTER_COLON',
+    MULTIPLE_SPACES_AFTER_COLON: 'MULTIPLE_SPACES_AFTER_COLON',
+    NON_ASCII_CHARACTERS: 'NON_ASCII_CHARACTERS',
+    NON_IMPERATIVE_MOOD: 'NON_IMPERATIVE_MOOD',
+};
+/**
+ * Error messages for validation failures
+ */
+exports.ERROR_MESSAGES = {
+    [exports.ERROR_CODES.INVALID_FORMAT]: 'Title format is incorrect. Expected format: <type>[optional scope][optional !]: <description>',
+    [exports.ERROR_CODES.INVALID_TYPE]: `Type must be one of: ${exports.ALLOWED_TYPES.join(', ')}`,
+    [exports.ERROR_CODES.TYPE_NOT_LOWERCASE]: 'Type must be lowercase',
+    [exports.ERROR_CODES.EMPTY_SCOPE]: 'Scope cannot be empty. Either provide a scope or omit the parentheses',
+    [exports.ERROR_CODES.INVALID_SCOPE_FORMAT]: 'Scope format is incorrect. Scope should only contain lowercase letters, numbers, hyphens, and underscores',
+    [exports.ERROR_CODES.SCOPE_NOT_LOWERCASE]: 'Scope must be lowercase (strict mode)',
+    [exports.ERROR_CODES.INVALID_BREAKING_CHANGE_POSITION]: 'Breaking change marker (!) must be placed after the scope (or type if no scope) and before the colon',
+    [exports.ERROR_CODES.MISSING_DESCRIPTION]: 'Description is required after the colon and space',
+    [exports.ERROR_CODES.DESCRIPTION_TOO_LONG]: `Description must not exceed ${exports.MAX_DESCRIPTION_LENGTH} characters`,
+    [exports.ERROR_CODES.DESCRIPTION_NOT_LOWERCASE]: 'Description must start with a lowercase letter (strict mode)',
+    [exports.ERROR_CODES.DESCRIPTION_ENDS_WITH_PERIOD]: 'Description must not end with a period (strict mode)',
+    [exports.ERROR_CODES.DESCRIPTION_HAS_LEADING_SPACE]: 'Description must not start with a space',
+    [exports.ERROR_CODES.DESCRIPTION_HAS_TRAILING_SPACE]: 'Description must not end with a space',
+    [exports.ERROR_CODES.MISSING_SPACE_AFTER_COLON]: 'There must be exactly one space after the colon',
+    [exports.ERROR_CODES.MULTIPLE_SPACES_AFTER_COLON]: 'There must be exactly one space after the colon, not multiple spaces',
+    [exports.ERROR_CODES.NON_ASCII_CHARACTERS]: 'Title must only contain displayable ASCII characters (range: 32-126)',
+    [exports.ERROR_CODES.NON_IMPERATIVE_MOOD]: 'Description should use imperative mood (e.g., "add" not "added" or "adds")',
+};
+/**
+ * Examples of correct titles for each error type
+ */
+exports.ERROR_EXAMPLES = {
+    [exports.ERROR_CODES.INVALID_FORMAT]: 'feat(auth): add user login',
+    [exports.ERROR_CODES.INVALID_TYPE]: 'feat: add new feature',
+    [exports.ERROR_CODES.TYPE_NOT_LOWERCASE]: 'feat: add new feature',
+    [exports.ERROR_CODES.EMPTY_SCOPE]: 'feat(auth): add user login',
+    [exports.ERROR_CODES.INVALID_SCOPE_FORMAT]: 'feat(user-auth): add login',
+    [exports.ERROR_CODES.SCOPE_NOT_LOWERCASE]: 'feat(auth): add user login',
+    [exports.ERROR_CODES.INVALID_BREAKING_CHANGE_POSITION]: 'feat(api)!: breaking change',
+    [exports.ERROR_CODES.MISSING_DESCRIPTION]: 'feat: add new feature',
+    [exports.ERROR_CODES.DESCRIPTION_TOO_LONG]: 'feat: add user authentication',
+    [exports.ERROR_CODES.DESCRIPTION_NOT_LOWERCASE]: 'feat: add user authentication',
+    [exports.ERROR_CODES.DESCRIPTION_ENDS_WITH_PERIOD]: 'feat: add user authentication',
+    [exports.ERROR_CODES.DESCRIPTION_HAS_LEADING_SPACE]: 'feat: add user authentication',
+    [exports.ERROR_CODES.DESCRIPTION_HAS_TRAILING_SPACE]: 'feat: add user authentication',
+    [exports.ERROR_CODES.MISSING_SPACE_AFTER_COLON]: 'feat: add new feature',
+    [exports.ERROR_CODES.MULTIPLE_SPACES_AFTER_COLON]: 'feat: add new feature',
+    [exports.ERROR_CODES.NON_ASCII_CHARACTERS]: 'feat: add user authentication',
+    [exports.ERROR_CODES.NON_IMPERATIVE_MOOD]: 'feat: add feature (not "added" or "adds")',
+};
+
+
+/***/ }),
+
+/***/ 2095:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ConventionalCommitValidator = void 0;
+const rules_1 = __nccwpck_require__(9182);
+/**
+ * Validator for Conventional Commits titles
+ */
+class ConventionalCommitValidator {
+    constructor(options = {}) {
+        this.strict = options.strict ?? true;
+    }
+    /**
+     * Validates a commit title against the Conventional Commits specification
+     */
+    validate(title) {
+        const errors = [];
+        // Check for non-ASCII characters first
+        if (rules_1.PATTERNS.nonAscii.test(title)) {
+            errors.push(this.createError(rules_1.ERROR_CODES.NON_ASCII_CHARACTERS));
+        }
+        // Parse the title into components
+        const components = this.parseTitle(title);
+        if (!components) {
+            errors.push(this.createError(rules_1.ERROR_CODES.INVALID_FORMAT));
+            return { isValid: false, errors };
+        }
+        // Validate each component
+        const typeErrors = this.validateType(components.type);
+        const scopeErrors = this.validateScope(title, components.scope);
+        const breakingChangeErrors = this.validateBreakingChange(title, components.isBreakingChange);
+        const descriptionErrors = this.validateDescription(title, components.description);
+        errors.push(...typeErrors, ...scopeErrors, ...breakingChangeErrors, ...descriptionErrors);
+        return {
+            isValid: errors.length === 0,
+            errors,
+        };
+    }
+    /**
+     * Parses a title into its components
+     */
+    parseTitle(title) {
+        // Extract type (preserve case for validation)
+        const typeMatch = title.match(/^([a-zA-Z]+)/);
+        if (!typeMatch)
+            return null;
+        const type = typeMatch[1];
+        // Find colon
+        const colonIndex = title.indexOf(':');
+        if (colonIndex === -1)
+            return null;
+        // Extract everything before colon for analysis
+        const beforeColon = title.substring(0, colonIndex);
+        // Extract scope (optional, allow empty for validation)
+        const scopeMatch = beforeColon.match(/\(([^)]*)\)/);
+        const scope = scopeMatch ? scopeMatch[1] : undefined;
+        // Check for breaking change marker (only before colon)
+        const isBreakingChange = beforeColon.includes('!');
+        // Check for space before colon (invalid format: "feat :" or "feat(scope) :")
+        // Build expected prefix (allowing for wrong ! position for later validation)
+        const withoutExclamation = beforeColon.replace(/!/g, '');
+        const expectedWithoutExclamation = type + (scopeMatch ? scopeMatch[0] : '');
+        if (withoutExclamation !== expectedWithoutExclamation) {
+            return null; // Something unexpected before colon (likely a space)
+        }
+        // Extract description (everything after ":" - don't trim to preserve spaces for validation)
+        let description = title.substring(colonIndex + 1);
+        return {
+            type,
+            scope,
+            isBreakingChange,
+            description,
+        };
+    }
+    /**
+     * Validates the type component
+     */
+    validateType(type) {
+        const errors = [];
+        // Check if type contains uppercase letters
+        if (/[A-Z]/.test(type)) {
+            errors.push(this.createError(rules_1.ERROR_CODES.TYPE_NOT_LOWERCASE));
+        }
+        // Check if type (lowercased) is in the allowed list
+        if (!rules_1.ALLOWED_TYPES.includes(type.toLowerCase())) {
+            errors.push(this.createError(rules_1.ERROR_CODES.INVALID_TYPE));
+        }
+        return errors;
+    }
+    /**
+     * Validates the scope component
+     */
+    validateScope(title, scope) {
+        const errors = [];
+        // Check for empty scope
+        if (scope !== undefined && scope.length === 0) {
+            errors.push(this.createError(rules_1.ERROR_CODES.EMPTY_SCOPE));
+            return errors;
+        }
+        if (scope !== undefined && scope.length > 0) {
+            // In strict mode, check that scope doesn't contain uppercase
+            if (this.strict && /[A-Z]/.test(scope)) {
+                errors.push(this.createError(rules_1.ERROR_CODES.SCOPE_NOT_LOWERCASE));
+            }
+            // Check scope format: only letters, numbers, hyphens, and underscores (case-insensitive for lenient mode)
+            if (this.strict) {
+                if (!/^[a-z0-9_-]+$/.test(scope)) {
+                    errors.push(this.createError(rules_1.ERROR_CODES.INVALID_SCOPE_FORMAT));
+                }
+            }
+            else {
+                if (!/^[a-zA-Z0-9_-]+$/.test(scope)) {
+                    errors.push(this.createError(rules_1.ERROR_CODES.INVALID_SCOPE_FORMAT));
+                }
+            }
+        }
+        return errors;
+    }
+    /**
+     * Validates the breaking change marker
+     */
+    validateBreakingChange(title, isBreakingChange) {
+        const errors = [];
+        const colonIndex = title.indexOf(':');
+        const exclamationIndex = title.indexOf('!');
+        if (isBreakingChange) {
+            // The ! must be before the colon
+            if (exclamationIndex === -1 || exclamationIndex >= colonIndex) {
+                errors.push(this.createError(rules_1.ERROR_CODES.INVALID_BREAKING_CHANGE_POSITION));
+                return errors;
+            }
+            // Check that ! is in the right position (immediately before colon, after type or scope)
+            // Valid: feat!: or feat(scope)!:
+            // Invalid: fea!t: or feat!(scope): or f!eat:
+            const validBreakingPattern = /^[a-z]+(\([^)]*\))?!:/i;
+            if (!validBreakingPattern.test(title)) {
+                errors.push(this.createError(rules_1.ERROR_CODES.INVALID_BREAKING_CHANGE_POSITION));
+            }
+        }
+        else {
+            // If no breaking change marker before colon, check if it's in the description (invalid)
+            if (exclamationIndex !== -1 && exclamationIndex > colonIndex) {
+                errors.push(this.createError(rules_1.ERROR_CODES.INVALID_BREAKING_CHANGE_POSITION));
+            }
+        }
+        return errors;
+    }
+    /**
+     * Validates the description component
+     */
+    validateDescription(title, description) {
+        const errors = [];
+        // Check for colon and space
+        if (!title.includes(': ')) {
+            errors.push(this.createError(rules_1.ERROR_CODES.MISSING_SPACE_AFTER_COLON));
+        }
+        // Check for multiple spaces after colon
+        if (/:\s{2,}/.test(title)) {
+            errors.push(this.createError(rules_1.ERROR_CODES.MULTIPLE_SPACES_AFTER_COLON));
+        }
+        // Remove leading space if present (should be exactly one)
+        let cleanDescription = description;
+        if (cleanDescription.startsWith(' ')) {
+            cleanDescription = cleanDescription.substring(1);
+        }
+        // Check if description is empty
+        if (!cleanDescription || cleanDescription.trim().length === 0) {
+            errors.push(this.createError(rules_1.ERROR_CODES.MISSING_DESCRIPTION));
+            return errors;
+        }
+        // Check for leading space in description (after the first space)
+        if (cleanDescription.startsWith(' ')) {
+            errors.push(this.createError(rules_1.ERROR_CODES.DESCRIPTION_HAS_LEADING_SPACE));
+        }
+        // Check for trailing space in description
+        if (cleanDescription.endsWith(' ')) {
+            errors.push(this.createError(rules_1.ERROR_CODES.DESCRIPTION_HAS_TRAILING_SPACE));
+        }
+        // Check description length
+        if (cleanDescription.length > rules_1.MAX_DESCRIPTION_LENGTH) {
+            errors.push(this.createError(rules_1.ERROR_CODES.DESCRIPTION_TOO_LONG));
+        }
+        // Strict mode checks
+        if (this.strict) {
+            // Check that description starts with lowercase
+            const trimmedDescription = cleanDescription.trim();
+            if (trimmedDescription.length > 0 && !rules_1.PATTERNS.descriptionStartsLowercase.test(trimmedDescription)) {
+                errors.push(this.createError(rules_1.ERROR_CODES.DESCRIPTION_NOT_LOWERCASE));
+            }
+            // Check that description doesn't end with a period
+            if (rules_1.PATTERNS.endsWithPeriod.test(trimmedDescription)) {
+                errors.push(this.createError(rules_1.ERROR_CODES.DESCRIPTION_ENDS_WITH_PERIOD));
+            }
+            // Suggest imperative mood (not an error, just a suggestion)
+            // We check if the description starts with common non-imperative patterns
+            const firstWord = trimmedDescription.split(' ')[0].toLowerCase();
+            const nonImperativePatterns = /^(added|adds|adding|updated|updates|updating|fixed|fixes|fixing|removed|removes|removing|deleted|deletes|deleting)$/i;
+            if (nonImperativePatterns.test(firstWord)) {
+                errors.push(this.createError(rules_1.ERROR_CODES.NON_IMPERATIVE_MOOD));
+            }
+        }
+        return errors;
+    }
+    /**
+     * Creates a validation error object
+     */
+    createError(code) {
+        return {
+            code: rules_1.ERROR_CODES[code],
+            message: rules_1.ERROR_MESSAGES[code],
+            example: rules_1.ERROR_EXAMPLES[code],
+        };
+    }
+}
+exports.ConventionalCommitValidator = ConventionalCommitValidator;
 
 
 /***/ }),
