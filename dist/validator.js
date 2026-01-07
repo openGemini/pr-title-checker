@@ -8,6 +8,7 @@ const rules_1 = require("./rules");
 class ConventionalCommitValidator {
     constructor(options = {}) {
         this.strict = options.strict ?? true;
+        this.maxDescriptionLength = options.maxDescriptionLength ?? rules_1.MAX_DESCRIPTION_LENGTH;
     }
     /**
      * Validates a commit title against the Conventional Commits specification
@@ -176,8 +177,12 @@ class ConventionalCommitValidator {
             errors.push(this.createError(rules_1.ERROR_CODES.DESCRIPTION_HAS_TRAILING_SPACE));
         }
         // Check description length
-        if (cleanDescription.length > rules_1.MAX_DESCRIPTION_LENGTH) {
-            errors.push(this.createError(rules_1.ERROR_CODES.DESCRIPTION_TOO_LONG));
+        if (cleanDescription.length > this.maxDescriptionLength) {
+            errors.push({
+                code: rules_1.ERROR_CODES.DESCRIPTION_TOO_LONG,
+                message: `Description must not exceed ${this.maxDescriptionLength} characters`,
+                example: rules_1.ERROR_EXAMPLES[rules_1.ERROR_CODES.DESCRIPTION_TOO_LONG],
+            });
         }
         // Strict mode checks
         if (this.strict) {

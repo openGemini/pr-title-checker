@@ -1,3 +1,17 @@
+// Copyright 2026 openGemini Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import {
   ALLOWED_TYPES,
   MAX_DESCRIPTION_LENGTH,
@@ -13,9 +27,11 @@ import { ValidationResult, ValidationError, TitleComponents, ValidatorOptions } 
  */
 export class ConventionalCommitValidator {
   private readonly strict: boolean;
+  private readonly maxDescriptionLength: number;
 
   constructor(options: ValidatorOptions = {}) {
     this.strict = options.strict ?? true;
+    this.maxDescriptionLength = options.maxDescriptionLength ?? MAX_DESCRIPTION_LENGTH;
   }
 
   /**
@@ -216,8 +232,12 @@ export class ConventionalCommitValidator {
     }
 
     // Check description length
-    if (cleanDescription.length > MAX_DESCRIPTION_LENGTH) {
-      errors.push(this.createError(ERROR_CODES.DESCRIPTION_TOO_LONG));
+    if (cleanDescription.length > this.maxDescriptionLength) {
+      errors.push({
+        code: ERROR_CODES.DESCRIPTION_TOO_LONG,
+        message: `Description must not exceed ${this.maxDescriptionLength} characters`,
+        example: ERROR_EXAMPLES[ERROR_CODES.DESCRIPTION_TOO_LONG],
+      });
     }
 
     // Strict mode checks

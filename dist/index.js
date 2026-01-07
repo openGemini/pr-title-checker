@@ -47,6 +47,16 @@ async function run() {
     try {
         // Get the strict mode setting (default: true)
         const strictMode = core.getInput('strict') !== 'false';
+        // Get the max description length (default: 50)
+        const maxDescriptionLengthInput = core.getInput('max_description_length');
+        const maxDescriptionLength = maxDescriptionLengthInput
+            ? parseInt(maxDescriptionLengthInput, 10)
+            : 50;
+        // Validate the max description length
+        if (isNaN(maxDescriptionLength) || maxDescriptionLength <= 0) {
+            core.setFailed('max_description_length must be a positive number');
+            return;
+        }
         // Get the title to check
         const context = github.context;
         let titleToCheck;
@@ -62,7 +72,10 @@ async function run() {
         }
         core.info(`Checking title: "${titleToCheck}"`);
         // Validate the title
-        const validator = new validator_1.ConventionalCommitValidator({ strict: strictMode });
+        const validator = new validator_1.ConventionalCommitValidator({
+            strict: strictMode,
+            maxDescriptionLength: maxDescriptionLength,
+        });
         const result = validator.validate(titleToCheck);
         if (!result.isValid) {
             // Build error message
@@ -87,7 +100,7 @@ async function run() {
             errorLines.push('   • type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert');
             errorLines.push('   • scope: optional, lowercase letters/numbers/hyphens/underscores only');
             errorLines.push('   • !: optional breaking change marker (placed after scope, before colon)');
-            errorLines.push('   • description: required, max 50 characters');
+            errorLines.push(`   • description: required, max ${maxDescriptionLength} characters`);
             if (strictMode) {
                 errorLines.push('');
                 errorLines.push('⚙️  Strict mode is enabled:');
@@ -264,6 +277,7 @@ const rules_1 = __nccwpck_require__(9182);
 class ConventionalCommitValidator {
     constructor(options = {}) {
         this.strict = options.strict ?? true;
+        this.maxDescriptionLength = options.maxDescriptionLength ?? rules_1.MAX_DESCRIPTION_LENGTH;
     }
     /**
      * Validates a commit title against the Conventional Commits specification
@@ -432,8 +446,12 @@ class ConventionalCommitValidator {
             errors.push(this.createError(rules_1.ERROR_CODES.DESCRIPTION_HAS_TRAILING_SPACE));
         }
         // Check description length
-        if (cleanDescription.length > rules_1.MAX_DESCRIPTION_LENGTH) {
-            errors.push(this.createError(rules_1.ERROR_CODES.DESCRIPTION_TOO_LONG));
+        if (cleanDescription.length > this.maxDescriptionLength) {
+            errors.push({
+                code: rules_1.ERROR_CODES.DESCRIPTION_TOO_LONG,
+                message: `Description must not exceed ${this.maxDescriptionLength} characters`,
+                example: rules_1.ERROR_EXAMPLES[rules_1.ERROR_CODES.DESCRIPTION_TOO_LONG],
+            });
         }
         // Strict mode checks
         if (this.strict) {
