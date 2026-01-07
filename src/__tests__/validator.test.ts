@@ -1,3 +1,17 @@
+// Copyright 2026 openGemini Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import { describe, test, expect } from '@jest/globals';
 import { ConventionalCommitValidator } from '../validator';
 
@@ -298,6 +312,49 @@ describe('ConventionalCommitValidator', () => {
     test('should handle all components with breaking change', () => {
       const result = validator.validate('refactor(core)!: rewrite engine');
       expect(result.isValid).toBe(true);
+    });
+  });
+
+  describe('custom max description length', () => {
+    test('should use default max length of 50', () => {
+      const validator = new ConventionalCommitValidator({ strict: true });
+      const longDescription = 'a'.repeat(51);
+      const result = validator.validate(`feat: ${longDescription}`);
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => e.code === 'DESCRIPTION_TOO_LONG')).toBe(true);
+    });
+
+    test('should accept custom max length', () => {
+      const validator = new ConventionalCommitValidator({
+        strict: true,
+        maxDescriptionLength: 100,
+      });
+      const description = 'a'.repeat(80);
+      const result = validator.validate(`feat: ${description}`);
+      expect(result.isValid).toBe(true);
+    });
+
+    test('should reject description exceeding custom max length', () => {
+      const validator = new ConventionalCommitValidator({
+        strict: true,
+        maxDescriptionLength: 30,
+      });
+      const description = 'a'.repeat(31);
+      const result = validator.validate(`feat: ${description}`);
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => e.code === 'DESCRIPTION_TOO_LONG')).toBe(true);
+    });
+
+    test('should show custom length in error message', () => {
+      const validator = new ConventionalCommitValidator({
+        strict: true,
+        maxDescriptionLength: 72,
+      });
+      const description = 'a'.repeat(73);
+      const result = validator.validate(`feat: ${description}`);
+      expect(result.isValid).toBe(false);
+      const error = result.errors.find(e => e.code === 'DESCRIPTION_TOO_LONG');
+      expect(error?.message).toContain('72');
     });
   });
 });

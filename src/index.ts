@@ -1,3 +1,17 @@
+// Copyright 2026 openGemini Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { ConventionalCommitValidator } from './validator';
@@ -6,6 +20,18 @@ async function run() {
   try {
     // Get the strict mode setting (default: true)
     const strictMode = core.getInput('strict') !== 'false';
+
+    // Get the max description length (default: 50)
+    const maxDescriptionLengthInput = core.getInput('max_description_length');
+    const maxDescriptionLength = maxDescriptionLengthInput
+      ? parseInt(maxDescriptionLengthInput, 10)
+      : 50;
+
+    // Validate the max description length
+    if (isNaN(maxDescriptionLength) || maxDescriptionLength <= 0) {
+      core.setFailed('max_description_length must be a positive number');
+      return;
+    }
 
     // Get the title to check
     const context = github.context;
@@ -23,7 +49,10 @@ async function run() {
     core.info(`Checking title: "${titleToCheck}"`);
 
     // Validate the title
-    const validator = new ConventionalCommitValidator({ strict: strictMode });
+    const validator = new ConventionalCommitValidator({
+      strict: strictMode,
+      maxDescriptionLength: maxDescriptionLength,
+    });
     const result = validator.validate(titleToCheck);
 
     if (!result.isValid) {
@@ -51,7 +80,7 @@ async function run() {
       errorLines.push('   • type: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert');
       errorLines.push('   • scope: optional, lowercase letters/numbers/hyphens/underscores only');
       errorLines.push('   • !: optional breaking change marker (placed after scope, before colon)');
-      errorLines.push('   • description: required, max 50 characters');
+      errorLines.push(`   • description: required, max ${maxDescriptionLength} characters`);
 
       if (strictMode) {
         errorLines.push('');

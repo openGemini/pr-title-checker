@@ -38,6 +38,7 @@ jobs:
   uses: openGemini/pr-title-checker@main
   with:
     strict: 'true'  # Enable strict mode (default)
+    max_description_length: '72'  # Set max description length to 72 characters (default: 50)
 ```
 
 ## Specification
@@ -89,7 +90,7 @@ jobs:
 ### Description
 
 **Required.** A brief description of the change:
-- Maximum 50 characters
+- Maximum length is configurable (default: 50 characters)
 - Must have exactly one space after the colon
 - Cannot start or end with spaces
 - Must contain only displayable ASCII characters (range: 32-126)
@@ -146,6 +147,7 @@ feat: add user authentication that is very long description exceeding limit  # T
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `strict` | Enable strict mode validation | No | `true` |
+| `max_description_length` | Maximum length for the description part | No | `50` |
 
 ### Strict Mode
 
@@ -162,6 +164,22 @@ To disable strict mode:
   with:
     strict: 'false'
 ```
+
+### Custom Description Length
+
+By default, the description is limited to 50 characters (following Conventional Commits best practices). You can customize this limit:
+
+```yaml
+- name: Validate PR Title
+  uses: openGemini/pr-title-checker@main
+  with:
+    max_description_length: '72'  # Allow up to 72 characters
+```
+
+**Common length limits:**
+- `50` - Conventional Commits default (recommended for commit messages)
+- `72` - Git commit message standard
+- `100` - Relaxed limit for longer descriptions
 
 ## Troubleshooting
 
@@ -212,7 +230,7 @@ node dist/index.js
 
 ## License
 
-MIT
+Apache-2.0
 
 ## Contributing
 
